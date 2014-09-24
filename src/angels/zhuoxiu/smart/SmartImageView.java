@@ -3,6 +3,7 @@ package angels.zhuoxiu.smart;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import android.R.integer;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -26,9 +27,13 @@ import android.util.Log;
 import android.widget.ImageView;
 
 public class SmartImageView extends ImageView {
+	String tag = this.getClass().getSimpleName();
 	private static final int LOADING_THREADS = 4;
 	private static ExecutorService threadPool = Executors.newFixedThreadPool(LOADING_THREADS);
 	private SmartImageTask currentTask;
+
+	int maskResId, frameResId;
+	Drawable mask, frame;
 
 	@SuppressLint("NewApi")
 	public SmartImageView(Context context) {
@@ -46,8 +51,10 @@ public class SmartImageView extends ImageView {
 		setLayerType(LAYER_TYPE_SOFTWARE, null);
 		if (attrs != null) {
 			TypedArray styled = context.obtainStyledAttributes(attrs, R.styleable.SmartImageView);
+			maskResId = styled.getResourceId(R.styleable.SmartImageView_srcMaskImage, 0);
+			frameResId = styled.getResourceId(R.styleable.SmartImageView_srcFrameImage, 0);
+			styled.recycle();
 		}
-
 	}
 
 	// Helpers to set image by URL
@@ -169,6 +176,7 @@ public class SmartImageView extends ImageView {
 		if (srcBitmap == null) {
 			super.onDraw(onDrawCanvas);
 		} else {
+
 			srcBitmap.setHasAlpha(true);
 			Bitmap mutableBitmap = Bitmap.createBitmap(getMeasuredWidth(), getMeasuredHeight(), Bitmap.Config.ARGB_8888);
 			Paint paint = new Paint();
@@ -176,32 +184,51 @@ public class SmartImageView extends ImageView {
 
 			Canvas canvas = new Canvas(mutableBitmap);
 			canvas.drawBitmap(Bitmap.createScaledBitmap(srcBitmap, getMeasuredWidth(), getMeasuredHeight(), true), 0, 0, paint);
-
-			if (getBackground() instanceof BitmapDrawable) {
-				BitmapDrawable background = (BitmapDrawable) getBackground();
-				background.getPaint().setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
-				background.draw(canvas);
-			} else if (getBackground() instanceof NinePatchDrawable) {
-				NinePatchDrawable background = (NinePatchDrawable) getBackground();
-				background.getPaint().setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
-				background.draw(canvas);
-			}
-
-			final Drawable foreground = getForeground();
-			if (foreground != null) {
-				foreground.setBounds(0, 0, getRight() - getLeft(), getBottom() - getTop());
-
-				final int scrollX = getScrollX();
-				final int scrollY = getScrollY();
-
-				if ((scrollX | scrollY) == 0) {
-					foreground.draw(canvas);
-				} else {
-					canvas.translate(scrollX, scrollY);
-					foreground.draw(canvas);
-					canvas.translate(-scrollX, -scrollY);
+ 
+			if (maskResId != 0 || mask != null) {
+				if (maskResId != 0 && mask == null) {
+					mask = getResources().getDrawable(maskResId);
+					mask.setBounds(0, 0, getRight()-getLeft(), getBottom()-getTop());
+				}
+				
+				if (mask instanceof BitmapDrawable) {
+					((BitmapDrawable) mask).getPaint().setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
+					((BitmapDrawable) mask).draw(canvas);
+				} else if (mask instanceof NinePatchDrawable) {
+					((NinePatchDrawable) mask).getPaint().setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
+					((NinePatchDrawable) mask).draw(canvas);
 				}
 			}
+			
+			if (frameResId != 0 || frame != null) {
+				if (frameResId != 0 && frame == null) {
+					frame = getResources().getDrawable(frameResId);
+					if (frame!=null){
+						frame.setBounds(0, 0, getRight()-getLeft(), getBottom()-getTop());
+					}
+				}
+				if (frame instanceof BitmapDrawable) {
+					((BitmapDrawable) frame).draw(canvas);
+				} else if (frame instanceof NinePatchDrawable) {
+					((NinePatchDrawable) frame).draw(canvas);
+				}
+			}
+  
+//			final Drawable foreground = getForeground();
+//			if (foreground != null) {
+//				foreground.setBounds(0, 0, getRight() - getLeft(), getBottom() - getTop());
+//
+//				final int scrollX = getScrollX();
+//				final int scrollY = getScrollY();
+//
+//				if ((scrollX | scrollY) == 0) {
+//					foreground.draw(canvas);
+//				} else {
+//					canvas.translate(scrollX, scrollY);
+//					foreground.draw(canvas);
+//					canvas.translate(-scrollX, -scrollY);
+//				}
+//			}
 			onDrawCanvas.drawBitmap(mutableBitmap, 0, 0, paint);
 		}
 	}
