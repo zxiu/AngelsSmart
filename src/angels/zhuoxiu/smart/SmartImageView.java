@@ -1,27 +1,26 @@
 package angels.zhuoxiu.smart;
 
+import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import android.R.integer;
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.res.Resources.NotFoundException;
 import android.content.res.TypedArray;
 import android.graphics.Bitmap;
-import android.graphics.Bitmap.Config;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PaintFlagsDrawFilter;
 import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
-import android.graphics.Rect;
-import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.NinePatchDrawable;
-import android.os.Build;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.widget.ImageView;
@@ -34,6 +33,7 @@ public class SmartImageView extends ImageView {
 
 	int maskResId, frameResId;
 	Drawable mask, frame;
+	int maskPaddingLeft, maskPaddingTop, maskPaddingRight, maskPaddingBottom;
 
 	@SuppressLint("NewApi")
 	public SmartImageView(Context context) {
@@ -55,6 +55,20 @@ public class SmartImageView extends ImageView {
 			frameResId = styled.getResourceId(R.styleable.SmartImageView_srcFrameImage, 0);
 			styled.recycle();
 		}
+		setMaskFrameResource(maskResId, frameResId);
+	}
+
+	public void setMaskFrameResource(int maskResId, int frameResId) {
+		if (this.maskResId != maskResId) {
+			mask = null;
+		}
+		if (this.frameResId != frameResId) {
+			frame = null;
+		}
+
+		this.maskResId = maskResId;
+		this.frameResId = frameResId;
+		invalidate();
 	}
 
 	// Helpers to set image by URL
@@ -153,6 +167,7 @@ public class SmartImageView extends ImageView {
 		threadPool.execute(currentTask);
 	}
 
+
 	public static void cancelAllTasks() {
 		threadPool.shutdownNow();
 		threadPool = Executors.newFixedThreadPool(LOADING_THREADS);
@@ -176,35 +191,77 @@ public class SmartImageView extends ImageView {
 		if (srcBitmap == null) {
 			super.onDraw(onDrawCanvas);
 		} else {
-
 			srcBitmap.setHasAlpha(true);
 			Bitmap mutableBitmap = Bitmap.createBitmap(getMeasuredWidth(), getMeasuredHeight(), Bitmap.Config.ARGB_8888);
 			Paint paint = new Paint();
 			paint.setFilterBitmap(false);
 
 			Canvas canvas = new Canvas(mutableBitmap);
-			canvas.drawBitmap(Bitmap.createScaledBitmap(srcBitmap, getMeasuredWidth(), getMeasuredHeight(), true), 0, 0, paint);
- 
 			if (maskResId != 0 || mask != null) {
 				if (maskResId != 0 && mask == null) {
-					mask = getResources().getDrawable(maskResId);
-					mask.setBounds(0, 0, getRight()-getLeft(), getBottom()-getTop());
+					try {
+						mask = getResources().getDrawable(maskResId);
+					} catch (NotFoundException e) {
+						super.onDraw(onDrawCanvas);
+						return;
+					}
 				}
-				
-				if (mask instanceof BitmapDrawable) {
-					((BitmapDrawable) mask).getPaint().setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
-					((BitmapDrawable) mask).draw(canvas);
-				} else if (mask instanceof NinePatchDrawable) {
-					((NinePatchDrawable) mask).getPaint().setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
-					((NinePatchDrawable) mask).draw(canvas);
+				if (mask != null) {
+					mask.setBounds(0, 0, getRight() - getLeft(), getBottom() - getTop());
+					Bitmap maskBitmap = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(getResources(), maskResId), 100, 100, false);
+					int miLeft = maskBitmap.getWidth(), miTop = maskBitmap.getHeight(), miRight = 0, miBottom = 0;
+					Date time0 = new Date();
+					Log.i(tag, "left time 0 =" + (new Date().getTime() - time0.getTime()) + " maskBitmap.getWidth()=" + maskBitmap.getWidth());
+					for (int x = 0; x < maskBitmap.getWidth(); x++) {
+						for (int y = 0; y < maskBitmap.getHeight(); y++) {
+							if (maskBitmap.getPixel(x, y) != Color.TRANSPARENT) {
+								miTop = Math.min(miTop, y);
+								miLeft = Math.min(miLeft, x);
+								break;
+							}
+						} 
+					} 
+					for (int x = maskBitmap.getWidth() - 1; x >= 0; x--) {
+						for (int y = maskBitmap.getHeight() - 1; y >= 0; y--) {
+							if (maskBitmap.getPixel(x, y) != Color.TRANSPARENT) {
+								miBottom = Math.max(miBottom, y);
+								miRight = Math.max(miRight, x);
+								break;
+							}
+
+						}
+					}
+					Log.i(tag, "left time 1 =" + (new Date().getTime() - time0.getTime()));
+					int miWidth = miRight - miLeft;
+					int miHeight = miBottom - miTop;
+					int width = getWidth() * miWidth / maskBitmap.getWidth();
+					int height = getHeight() * miHeight / maskBitmap.getHeight();
+					int left = getWidth() * miLeft / maskBitmap.getWidth();
+					int top = getHeight() * miTop / maskBitmap.getHeight();
+					Log.i(tag, "left=" + left + " width=" + width + "  getWidth()=" + getWidth());
+					int size=Math.max(width, height);
+					canvas.drawBitmap(Bitmap.createScaledBitmap(srcBitmap, size, size, true), left, top, paint);
+					maskBitmap.recycle();
+					if (mask instanceof BitmapDrawable) {
+						((BitmapDrawable) mask).getPaint().setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
+						((BitmapDrawable) mask).draw(canvas);
+					} else if (mask instanceof NinePatchDrawable) {
+						((NinePatchDrawable) mask).getPaint().setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
+						((NinePatchDrawable) mask).draw(canvas);
+					}
+				} else {
+					canvas.drawBitmap(Bitmap.createScaledBitmap(srcBitmap, getWidth(), getHeight(), true), 0, 0, paint);
 				}
+
+			} else {
+				canvas.drawBitmap(Bitmap.createScaledBitmap(srcBitmap, getWidth(), getHeight(), true), 0, 0, paint);
 			}
-			
+
 			if (frameResId != 0 || frame != null) {
 				if (frameResId != 0 && frame == null) {
 					frame = getResources().getDrawable(frameResId);
-					if (frame!=null){
-						frame.setBounds(0, 0, getRight()-getLeft(), getBottom()-getTop());
+					if (frame != null) {
+						frame.setBounds(0, 0, getRight() - getLeft(), getBottom() - getTop());
 					}
 				}
 				if (frame instanceof BitmapDrawable) {
@@ -213,22 +270,23 @@ public class SmartImageView extends ImageView {
 					((NinePatchDrawable) frame).draw(canvas);
 				}
 			}
-  
-//			final Drawable foreground = getForeground();
-//			if (foreground != null) {
-//				foreground.setBounds(0, 0, getRight() - getLeft(), getBottom() - getTop());
-//
-//				final int scrollX = getScrollX();
-//				final int scrollY = getScrollY();
-//
-//				if ((scrollX | scrollY) == 0) {
-//					foreground.draw(canvas);
-//				} else {
-//					canvas.translate(scrollX, scrollY);
-//					foreground.draw(canvas);
-//					canvas.translate(-scrollX, -scrollY);
-//				}
-//			}
+
+			// final Drawable foreground = getForeground();
+			// if (foreground != null) {
+			// foreground.setBounds(0, 0, getRight() - getLeft(), getBottom() -
+			// getTop());
+			//
+			// final int scrollX = getScrollX();
+			// final int scrollY = getScrollY();
+			//
+			// if ((scrollX | scrollY) == 0) {
+			// foreground.draw(canvas);
+			// } else {
+			// canvas.translate(scrollX, scrollY);
+			// foreground.draw(canvas);
+			// canvas.translate(-scrollX, -scrollY);
+			// }
+			// }
 			onDrawCanvas.drawBitmap(mutableBitmap, 0, 0, paint);
 		}
 	}
