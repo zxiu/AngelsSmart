@@ -189,7 +189,7 @@ public class SmartImageView extends ImageView {
 	@Override
 	protected void onDraw(Canvas onDrawCanvas) {
 		if (srcBitmap == null) {
-			super.onDraw(onDrawCanvas);
+			super.onDraw(onDrawCanvas); 
 		} else {
 			srcBitmap.setHasAlpha(true);
 			Bitmap mutableBitmap = Bitmap.createBitmap(getMeasuredWidth(), getMeasuredHeight(), Bitmap.Config.ARGB_8888);
@@ -211,7 +211,6 @@ public class SmartImageView extends ImageView {
 					Bitmap maskBitmap = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(getResources(), maskResId), 100, 100, false);
 					int miLeft = maskBitmap.getWidth(), miTop = maskBitmap.getHeight(), miRight = 0, miBottom = 0;
 					Date time0 = new Date();
-					Log.i(tag, "left time 0 =" + (new Date().getTime() - time0.getTime()) + " maskBitmap.getWidth()=" + maskBitmap.getWidth());
 					for (int x = 0; x < maskBitmap.getWidth(); x++) {
 						for (int y = 0; y < maskBitmap.getHeight(); y++) {
 							if (maskBitmap.getPixel(x, y) != Color.TRANSPARENT) {
@@ -231,14 +230,12 @@ public class SmartImageView extends ImageView {
 
 						}
 					}
-					Log.i(tag, "left time 1 =" + (new Date().getTime() - time0.getTime()));
 					int miWidth = miRight - miLeft;
 					int miHeight = miBottom - miTop;
 					int width = getWidth() * miWidth / maskBitmap.getWidth();
 					int height = getHeight() * miHeight / maskBitmap.getHeight();
 					int left = getWidth() * miLeft / maskBitmap.getWidth();
 					int top = getHeight() * miTop / maskBitmap.getHeight();
-					Log.i(tag, "left=" + left + " width=" + width + "  getWidth()=" + getWidth());
 					int size=Math.max(width, height);
 					canvas.drawBitmap(Bitmap.createScaledBitmap(srcBitmap, size, size, true), left, top, paint);
 					maskBitmap.recycle();
