@@ -13,6 +13,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.graphics.PaintFlagsDrawFilter;
 import android.graphics.Path;
@@ -34,6 +36,7 @@ public class SmartImageView extends ImageView {
 	int maskResId, frameResId;
 	Drawable mask, frame;
 	int maskPaddingLeft, maskPaddingTop, maskPaddingRight, maskPaddingBottom;
+	boolean isGray = false;
 
 	@SuppressLint("NewApi")
 	public SmartImageView(Context context) {
@@ -167,7 +170,6 @@ public class SmartImageView extends ImageView {
 		threadPool.execute(currentTask);
 	}
 
-
 	public static void cancelAllTasks() {
 		threadPool.shutdownNow();
 		threadPool = Executors.newFixedThreadPool(LOADING_THREADS);
@@ -188,10 +190,15 @@ public class SmartImageView extends ImageView {
 	@SuppressLint({ "DrawAllocation", "NewApi" })
 	@Override
 	protected void onDraw(Canvas onDrawCanvas) {
+
 		if (srcBitmap == null) {
-			super.onDraw(onDrawCanvas); 
+			super.onDraw(onDrawCanvas);
 		} else {
-			srcBitmap.setHasAlpha(true);
+			Bitmap tempSrcBitmap = srcBitmap.copy(Bitmap.Config.ARGB_8888, true);
+			if (isGray) {
+				tempSrcBitmap = bitmap2Gray(tempSrcBitmap);
+			}
+			tempSrcBitmap.setHasAlpha(true);
 			Bitmap mutableBitmap = Bitmap.createBitmap(getMeasuredWidth(), getMeasuredHeight(), Bitmap.Config.ARGB_8888);
 			Paint paint = new Paint();
 			paint.setFilterBitmap(false);
@@ -218,8 +225,8 @@ public class SmartImageView extends ImageView {
 								miLeft = Math.min(miLeft, x);
 								break;
 							}
-						} 
-					} 
+						}
+					}
 					for (int x = maskBitmap.getWidth() - 1; x >= 0; x--) {
 						for (int y = maskBitmap.getHeight() - 1; y >= 0; y--) {
 							if (maskBitmap.getPixel(x, y) != Color.TRANSPARENT) {
@@ -236,8 +243,8 @@ public class SmartImageView extends ImageView {
 					int height = getHeight() * miHeight / maskBitmap.getHeight();
 					int left = getWidth() * miLeft / maskBitmap.getWidth();
 					int top = getHeight() * miTop / maskBitmap.getHeight();
-					int size=Math.max(width, height);
-					canvas.drawBitmap(Bitmap.createScaledBitmap(srcBitmap, size, size, true), left, top, paint);
+					int size = Math.max(width, height);
+					canvas.drawBitmap(Bitmap.createScaledBitmap(tempSrcBitmap, size, size, true), left, top, paint);
 					maskBitmap.recycle();
 					if (mask instanceof BitmapDrawable) {
 						((BitmapDrawable) mask).getPaint().setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
@@ -247,11 +254,11 @@ public class SmartImageView extends ImageView {
 						((NinePatchDrawable) mask).draw(canvas);
 					}
 				} else {
-					canvas.drawBitmap(Bitmap.createScaledBitmap(srcBitmap, getWidth(), getHeight(), true), 0, 0, paint);
+					canvas.drawBitmap(Bitmap.createScaledBitmap(tempSrcBitmap, getWidth(), getHeight(), true), 0, 0, paint);
 				}
 
 			} else {
-				canvas.drawBitmap(Bitmap.createScaledBitmap(srcBitmap, getWidth(), getHeight(), true), 0, 0, paint);
+				canvas.drawBitmap(Bitmap.createScaledBitmap(tempSrcBitmap, getWidth(), getHeight(), true), 0, 0, paint);
 			}
 
 			if (frameResId != 0 || frame != null) {
@@ -267,25 +274,28 @@ public class SmartImageView extends ImageView {
 					((NinePatchDrawable) frame).draw(canvas);
 				}
 			}
-
-			// final Drawable foreground = getForeground();
-			// if (foreground != null) {
-			// foreground.setBounds(0, 0, getRight() - getLeft(), getBottom() -
-			// getTop());
-			//
-			// final int scrollX = getScrollX();
-			// final int scrollY = getScrollY();
-			//
-			// if ((scrollX | scrollY) == 0) {
-			// foreground.draw(canvas);
-			// } else {
-			// canvas.translate(scrollX, scrollY);
-			// foreground.draw(canvas);
-			// canvas.translate(-scrollX, -scrollY);
-			// }
-			// }
 			onDrawCanvas.drawBitmap(mutableBitmap, 0, 0, paint);
 		}
+	}
+
+	public Bitmap bitmap2Gray(Bitmap bmSrc) {
+		int width = bmSrc.getWidth();
+		int height = bmSrc.getHeight();
+		Bitmap bmpGray = null;
+		bmpGray = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
+		Canvas c = new Canvas(bmpGray);
+		Paint paint = new Paint();
+		ColorMatrix cm = new ColorMatrix();
+		cm.setSaturation(0);
+		ColorMatrixColorFilter f = new ColorMatrixColorFilter(cm);
+		paint.setColorFilter(f);
+		c.drawBitmap(bmSrc, 0, 0, paint);
+		return bmpGray;
+	}
+
+	public void setGray(boolean isGray) {
+		this.isGray = isGray;
+		invalidate();
 	}
 
 	@Override
