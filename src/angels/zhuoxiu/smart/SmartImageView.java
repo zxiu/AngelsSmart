@@ -282,7 +282,7 @@ public class SmartImageView extends ImageView {
 		int width = bmSrc.getWidth();
 		int height = bmSrc.getHeight();
 		Bitmap bmpGray = null;
-		bmpGray = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
+		bmpGray = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_4444);
 		Canvas c = new Canvas(bmpGray);
 		Paint paint = new Paint();
 		ColorMatrix cm = new ColorMatrix();
