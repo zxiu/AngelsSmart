@@ -7,8 +7,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import android.content.Context;
 import android.webkit.URLUtil;
 
-import com.zhuoxiu.angelslibrary.net.Conn;
-import com.zhuoxiu.angelslibrary.util.AndroidUtils;
+import angel.zhuoxiu.library.net.Conn;
+import angel.zhuoxiu.library.util.AndroidUtils;
 
 public class WebFileCache {
 	static final String tag = WebFileCache.class.getSimpleName();
